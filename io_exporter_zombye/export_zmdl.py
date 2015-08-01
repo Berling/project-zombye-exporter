@@ -197,9 +197,16 @@ def anim_data(armature, bone_ids):
 def write_json(file, data):
 	json.dump(data, file, indent="\t", separators=(',', ' : '))
 
-def write_model(filepath):
+def write_model(filepath, selected):
 	models = {}
-	for obj in bpy.data.objects:
+
+	objects = None
+	if selected:
+		objects = bpy.context.selected_objects
+	else:
+		objects = bpy.data.objects
+
+	for obj in objects:
 		if obj.users > 0 and obj.type == 'MESH' and obj.name[0:3] != 'WGT':
 			armature = obj.find_armature()
 			if armature is not None:
@@ -231,5 +238,11 @@ class export_zmdl(Operator, ExportHelper):
 		options={'HIDDEN'}
 	)
 
+	selected = BoolProperty(
+		name="selected",
+		description="Export only selected objects.",
+		default=False
+	)
+
 	def execute(self, context):
-		return write_model(self.filepath)
+		return write_model(self.filepath, self.selected)
