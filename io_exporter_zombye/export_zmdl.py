@@ -25,11 +25,80 @@ import bpy
 import json
 import mathutils
 
+def triangulate(obj):
+	mesh = bmesh.new()
+	mesh.from_mesh(obj.data)
+	bmesh.ops.triangulate(mesh, faces=mesh.faces)
+	return mesh
+
+def mesh_data(obj):
+	mesh = triangulate(obj)
+
+	meshdata = {}
+	vertices_lookup = {}
+	vertices = []
+	indices = []
+	submeshes = {}
+
+	uv_layer = mesh.loops.layers.uv.active
+	if uv_layer is None:
+		raise TypeError("mesh %s has no active uv layer" %name)
+
+	for material_slot in obj.material_slots:
+		material = material_slot.material
+		if material.users > 0:
+			submeshes[material.name] = {}
+			submeshes[material.name]["indices"] = []
+			submeshes[material.name]["textures"] = {}
+
+			texture_slots = material.texture_slots
+			textures = ["diffuse", "normal", "material"]
+			for texture in textures:
+				for key, value in texture_slots.items():
+					if texture in key:
+						submeshes[material.name]["textures"][texture] = bpy.path.abspath(value.texture.image.filepath)
+						break
+					else:
+						submeshes[material.name]["textures"][texture] = ""
+
+	for face in mesh.faces:
+		triangle = []
+		for loop in face.loops:
+			vertex = loop.vert
+			position = vertex.co
+			normal = face.normal
+			if face.smooth:
+				normal = vertex.normal
+			texcoord = loop[uv_layer].uv
+			index = vertex.index
+
+			vertexattributes = {}
+			vertexattributes["position"] = [position.x, position.y, position.z]
+			vertexattributes["texcoord"] = [texcoord.x, 1.0 - texcoord.y]
+			vertexattributes["normal"] = [normal.x, normal.y, normal.z]
+
+			if index not in vertices_lookup:
+				vertices_lookup[index] = len(vertices)
+				vertices.append(vertexattributes)
+
+			triangle.append(vertices_lookup[index])
+
+		material = obj.material_slots[face.material_index].material
+		submeshes[material.name]["indices"].append(triangle)
+
+	meshdata["vertices"] = vertices
+	meshdata["submeshes"] = submeshes
+
+	return meshdata
+
 def write_json(file, data):
-	json.dump(data, file)
+	json.dump(data, file, indent="\t", separators=(',', ' : '))
 
 def write_model(filepath):
 	models = {}
+	for obj in bpy.data.objects:
+		if obj.users > 0 and obj.type == 'MESH':
+			models[obj.name] = mesh_data(obj)
 
 	file = open(filepath, 'w', encoding='utf-8')
 	write_json(file, models)
