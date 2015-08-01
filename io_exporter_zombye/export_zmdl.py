@@ -23,7 +23,6 @@
 import bmesh
 import bpy
 import json
-import mathutils
 
 def triangulate(obj):
 	mesh = bmesh.new()
@@ -31,7 +30,7 @@ def triangulate(obj):
 	bmesh.ops.triangulate(mesh, faces=mesh.faces)
 	return mesh
 
-def mesh_data(obj):
+def mesh_data(obj, bone_ids):
 	mesh = triangulate(obj)
 
 	meshdata = {}
@@ -40,9 +39,16 @@ def mesh_data(obj):
 	indices = []
 	submeshes = {}
 
+	write_skin = False
+	vertex_groups = obj.vertex_groups
+	dvert_layer = mesh.verts.layers.deform.active
+
+	if bone_ids is not None and vertex_groups is not None and dvert_layer is not None:
+		write_skin = True
+
 	uv_layer = mesh.loops.layers.uv.active
 	if uv_layer is None:
-		raise TypeError("mesh %s has no active uv layer" %name)
+		raise TypeError("mesh %s has no active uv layer" %obj.data.name)
 
 	for material_slot in obj.material_slots:
 		material = material_slot.material
@@ -83,13 +89,110 @@ def mesh_data(obj):
 
 			triangle.append(vertices_lookup[index])
 
+			if write_skin:
+				dvert = vertex[dvert_layer]
+				if len(dvert.values()) > 4:
+					raise ValueError("vertex is assigned to too many vertex groups")
+				if len(dvert.values()) == 0:
+					parent_name = vertex_groups
+					vertexattributes["indices"] = [0]
+					vertexattributes["weights"] = [1.0]
+				else:
+					vertexattributes["indices"] = []
+					vertexattributes["weights"] = []
+					for key, value in dvert.items():
+						bone_name = vertex_groups[key].name
+						index = bone_ids[bone_name]
+						vertexattributes["indices"].append(index)
+						vertexattributes["weights"].append(value)
+
 		material = obj.material_slots[face.material_index].material
 		submeshes[material.name]["indices"].append(triangle)
 
 	meshdata["vertices"] = vertices
 	meshdata["submeshes"] = submeshes
 
+	mesh.free()
+	del mesh
+
 	return meshdata
+
+from mathutils import Matrix, Quaternion
+
+def anim_data(armature, bone_ids):
+	armature_data = {}
+	armature_data["skeleton"] = {}
+	ids = 0
+
+	armature_data["bone_hierachy"] = {}
+	for i in range(0, len(armature.bones)):
+		armature_data["bone_hierachy"][i] = []
+	for bone in armature.bones:
+		bone_data = {}
+		if bone.name not in bone_ids:
+			bone_ids[bone.name] = ids
+			ids += 1
+		bone_data["id"] = bone_ids[bone.name]
+		parent = bone.parent
+		parent_transformation = Matrix()
+		parent_transformation.identity()
+		if parent is None:
+			bone_data["parent"] = None
+		else:
+			if parent.name not in bone_ids:
+				bone_ids[parent.name] = ids
+				ids += 1
+			bone_data["parent"] = bone_ids[parent.name]
+			parent_transformation = armature.bones[bone_data["parent"]].matrix_local
+			armature_data["bone_hierachy"][bone_data["parent"]].append(bone_data["id"])
+
+		transformation = parent_transformation.inverted() * bone.matrix_local
+		rot = transformation.to_quaternion()
+		rot.normalize()
+		bone_data["rotation"] = [rot.w, rot.x, rot.y, rot.z]
+		pos = transformation.to_translation()
+		bone_data["translation"] = [pos.x, pos.y, pos.z]
+		scale = transformation.to_scale()
+		bone_data["scale"] = [scale.x, scale.y, scale.z]
+
+		armature_data["skeleton"][bone_ids[bone.name]] = bone_data
+
+	armature_data["animations"] = {}
+	for action in bpy.data.actions:
+		armature_data["animations"][action.name] = {}
+		frame_range = action.frame_range
+		armature_data["animations"][action.name]["length"] = frame_range[1] - frame_range[0]
+		armature_data["animations"][action.name]["tracks"] = {}
+		old_name = ""
+		for fcu in action.fcurves:
+			bone_name = fcu.data_path
+			bone_name = bone_name[12:len(bone_name)]
+			bone_name = bone_name[0:bone_name.find("\"")]
+			bone_id = bone_ids[bone_name]
+
+			if bone_name not in armature_data["animations"][action.name]["tracks"]:
+				armature_data["animations"][action.name]["tracks"][bone_name] = {}
+				armature_data["animations"][action.name]["tracks"][bone_name]["id"] = bone_id
+
+			transformation_name = fcu.data_path
+			transformation_name = transformation_name[transformation_name.rfind(".") + 1:len(transformation_name)]
+			trans = armature_data["animations"][action.name]["tracks"][bone_name]
+			if transformation_name not in trans:
+				trans[transformation_name] = []
+
+			index = 0
+			for keyframe in fcu.keyframe_points:
+				if transformation_name != old_name:
+					trans[transformation_name].append({});
+					trans[transformation_name][-1]["frame"] = keyframe.co.x - frame_range[0]
+					trans[transformation_name][-1]["data"] = []
+
+				trans[transformation_name][index]["data"].append(keyframe.co.y)
+				index += 1
+
+			old_name = transformation_name
+
+	return armature_data
 
 def write_json(file, data):
 	json.dump(data, file, indent="\t", separators=(',', ' : '))
@@ -97,8 +200,15 @@ def write_json(file, data):
 def write_model(filepath):
 	models = {}
 	for obj in bpy.data.objects:
-		if obj.users > 0 and obj.type == 'MESH':
-			models[obj.name] = mesh_data(obj)
+		if obj.users > 0 and obj.type == 'MESH' and obj.name[0:3] != 'WGT':
+			armature = obj.find_armature()
+			if armature is not None:
+				models[obj.name] = {}
+				bone_ids = {}
+				models[obj.name].update(anim_data(armature.data, bone_ids))
+				models[obj.name].update(mesh_data(obj, bone_ids))
+			else:
+				models[obj.name] = mesh_data(obj, None)
 
 	file = open(filepath, 'w', encoding='utf-8')
 	write_json(file, models)
