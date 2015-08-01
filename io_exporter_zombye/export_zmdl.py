@@ -25,7 +25,16 @@ import bpy
 import json
 import mathutils
 
+def write_json(file, data):
+	json.dump(data, file)
+
 def write_model(filepath):
+	models = {}
+
+	file = open(filepath, 'w', encoding='utf-8')
+	write_json(file, models)
+	file.close()
+
 	return {"FINISHED"}
 
 from bpy.props import StringProperty, BoolProperty, EnumProperty
