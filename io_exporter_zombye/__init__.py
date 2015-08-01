@@ -20,6 +20,9 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import bpy
+from .export_zmdl import export_zmdl
+
 bl_info = {
 	"name" : "Zombye Model Exporter",
 	"author" : "Georg Schäfer",
@@ -29,3 +32,18 @@ bl_info = {
 	"description" : "The script exports meshes, armatures and animations to the Zombye Model format (zmdl)",
 	"category" : "Import-Export"
 }
+
+def menu_func_export(self, context):
+	self.layout.operator(export_zmdl.bl_idname, text="Zombye Model (.zmdl)")
+
+def register():
+	bpy.utils.register_class(export_zmdl)
+	bpy.types.INFO_MT_file_export.append(menu_func_export)
+
+def unregister():
+	bpy.utils.unregister_class(export_zmdl)
+	bpy.types.INFO_MT_file_export.remove(menu_func_export)
+
+if __name__ == "__main__":
+	register()
+	bpy.ops.zmdl.export('INVOKE_DEFAULT')

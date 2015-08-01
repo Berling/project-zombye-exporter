@@ -233,20 +233,3 @@ class export_zmdl(Operator, ExportHelper):
 
 	def execute(self, context):
 		return write_model(self.filepath)
-
-def menu_func_export(self, context):
-	self.layout.operator(export_zmdl.bl_idname, text="Zombye Model (.zmdl)")
-
-
-def register():
-	bpy.utils.register_class(export_zmdl)
-	bpy.types.INFO_MT_file_export.append(menu_func_export)
-
-
-def unregister():
-	bpy.utils.unregister_class(export_zmdl)
-	bpy.types.INFO_MT_file_export.remove(menu_func_export)
-
-if __name__ == "__main__":
-	register()
-	bpy.ops.zmdl.export('INVOKE_DEFAULT')
