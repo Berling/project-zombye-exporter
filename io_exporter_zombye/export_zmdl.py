@@ -47,7 +47,7 @@ class export_zmdl(Operator, ExportHelper):
 		return write_model(self.filepath)
 
 def menu_func_export(self, context):
-	self.layout.operator(export_zmdl.bl_idname, text="Exporter for the zombye model format")
+	self.layout.operator(export_zmdl.bl_idname, text="Zombye Model (.zmdl)")
 
 
 def register():
