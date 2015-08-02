@@ -4,7 +4,7 @@ This plug-in adds support for exporting meshes and animations to the zombye mode
 
 ## Latest release
 
-[v0.1.1](releases/tags/v0.1.1)
+[v0.1.1](https://github.com/Berling/project-zombye-exporter/releases/tag/v0.1.1)
 
 ## Features
 
