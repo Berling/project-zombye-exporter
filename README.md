@@ -2,6 +2,10 @@
 
 This plug-in adds support for exporting meshes and animations to the zombye model format (zmdl). The zombye model format is a json based format for the yet unnamed 3D engine project-zombye.
 
+## Latest release
+
+[v0.1.1](releases/tags/v0.1.1)
+
 ## Features
 
 * export static meshes
