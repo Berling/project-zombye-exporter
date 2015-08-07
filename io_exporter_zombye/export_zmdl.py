@@ -76,18 +76,27 @@ def mesh_data(obj, bone_ids):
 			if face.smooth:
 				normal = vertex.normal
 			texcoord = loop[uv_layer].uv
-			index = vertex.index
 
 			vertexattributes = {}
 			vertexattributes["position"] = [position.x, position.y, position.z]
 			vertexattributes["texcoord"] = [texcoord.x, 1.0 - texcoord.y]
 			vertexattributes["normal"] = [normal.x, normal.y, normal.z]
 
-			if index not in vertices_lookup:
-				vertices_lookup[index] = len(vertices)
+			vertex_tupel = (
+				vertexattributes["position"][0],
+				vertexattributes["position"][1],
+				vertexattributes["position"][2],
+				vertexattributes["texcoord"][0],
+				vertexattributes["texcoord"][1],
+				vertexattributes["normal"][0],
+				vertexattributes["normal"][1],
+				vertexattributes["normal"][2]
+			)
+			if vertex_tupel not in vertices_lookup:
+				vertices_lookup[vertex_tupel] = len(vertices)
 				vertices.append(vertexattributes)
 
-			triangle.append(vertices_lookup[index])
+			triangle.append(vertices_lookup[vertex_tupel])
 
 			if write_skin:
 				dvert = vertex[dvert_layer]
