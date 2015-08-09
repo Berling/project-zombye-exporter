@@ -206,7 +206,7 @@ def anim_data(armature, bone_ids):
 def write_json(file, data):
 	json.dump(data, file, indent="\t", separators=(',', ' : '))
 
-def write_model(filepath, selected):
+def write_model(filepath, selected, parallax_mapping):
 	models = {}
 
 	objects = None
@@ -225,6 +225,7 @@ def write_model(filepath, selected):
 				models[obj.name].update(mesh_data(obj, bone_ids))
 			else:
 				models[obj.name] = mesh_data(obj, None)
+			models[obj.name]["parallax"] = parallax_mapping
 
 	file = open(filepath, 'w', encoding='utf-8')
 	write_json(file, models)
@@ -253,5 +254,11 @@ class export_zmdl(Operator, ExportHelper):
 		default=False
 	)
 
+	parallax_mapping = BoolProperty(
+		name="parallax",
+		description="Enable parallax displacement mapping for this model.",
+		default=True
+	)
+
 	def execute(self, context):
-		return write_model(self.filepath, self.selected)
+		return write_model(self.filepath, self.selected, self.parallax_mapping)
