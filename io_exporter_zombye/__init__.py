@@ -26,7 +26,7 @@ from .export_zmdl import export_zmdl
 bl_info = {
 	"name" : "Zombye Model Exporter",
 	"author" : "Georg Schäfer",
-	"version" : (0, 1, 1),
+	"version" : (0, 1, 2),
 	"blender" : (2, 7, 5),
 	"location" : "File > Export > Zombye Model (.zmdl)",
 	"description" : "The script exports meshes, armatures and animations to the Zombye Model format (zmdl)",
